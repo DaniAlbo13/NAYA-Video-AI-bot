@@ -1,0 +1,13 @@
+{
+  "name": "naya-trading-ai-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NAYA crypto signal prototype: Cloudflare Worker backend and mobile web UI",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

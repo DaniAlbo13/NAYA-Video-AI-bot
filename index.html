@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d19">
+<title>NAYA Trading AI — Prototype</title>
+<style>
+:root{color-scheme:dark;--bg:#080d19;--card:#111a2b;--line:#26344b;--text:#eef4ff;--muted:#9aabc5;--cyan:#50d9e8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#152642 0,#080d19 58%);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);min-height:100vh}
+main{max-width:780px;margin:auto;padding:22px 15px 44px}.brand{color:var(--cyan);letter-spacing:3px;font-size:13px}.hero h1{margin:8px 0;font-size:30px}.sub{color:var(--muted);line-height:1.8}
+.card{background:#111a2beF;border:1px solid var(--line);border-radius:18px;padding:17px;margin-top:15px;box-shadow:0 12px 35px #0003}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}select,button{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px;background:#0b1322;color:var(--text);font:inherit}button{margin-top:12px;background:var(--cyan);color:#07131d;font-weight:750;border:0;cursor:pointer}button:disabled{opacity:.6}
+.pill{display:inline-block;border:1px solid var(--line);padding:6px 12px;border-radius:99px;font-weight:700}.BUY{color:#43e2a1}.SELL{color:#ff7b88}.WAIT{color:#ffd479}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{background:#0a1220;border-radius:12px;padding:12px;overflow-wrap:anywhere}.metric small{display:block;color:var(--muted);margin-bottom:5px}.metric strong{font-size:16px}.reason{line-height:1.9}.warning{font-size:12px;color:#aab7ca;line-height:1.8}.error{color:#ff8d9b}.hide{display:none}
+@media(max-width:430px){.hero h1{font-size:25px}.controls{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body><main>
+<header class="hero"><div class="brand">N A Y A / TRADING INTELLIGENCE</div><h1>پنل تحلیل بازار</h1><div class="sub">نمونه اولیه سیگنال‌دهی کریپتو · تایم‌فریم پیش‌فرض ۱۵ دقیقه</div></header>
+<section class="card">
+<div class="controls">
+<div><label for="symbol">ارز</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option><option>ADAUSDT</option><option>LINKUSDT</option></select></div>
+<div><label for="interval">تایم‌فریم</label><select id="interval"><option value="15m">۱۵ دقیقه</option><option value="5m">۵ دقیقه</option><option value="30m">۳۰ دقیقه</option><option value="1h">۱ ساعت</option><option value="4h">۴ ساعت</option><option value="1d">روزانه</option></select></div>
+</div><button id="analyze">تحلیل بازار</button><p id="status" class="warning">برای دریافت کندل‌های زنده، ابتدا آدرس Worker را در تنظیمات این فایل وارد کن.</p>
+</section>
+<section id="result" class="card hide">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2 id="symbolTitle">BTCUSDT</h2><span id="signal" class="pill WAIT">WAIT</span></div>
+<p id="reason" class="reason"></p>
+<div class="grid">
+<div class="metric"><small>قیمت آخرین کندل</small><strong id="price">—</strong></div>
+<div class="metric"><small>ناحیه ورود</small><strong id="entry">—</strong></div>
+<div class="metric"><small>حد ضرر</small><strong id="sl">—</strong></div>
+<div class="metric"><small>اهداف سود</small><strong id="tp">—</strong></div>
+<div class="metric"><small>RSI (14)</small><strong id="rsi">—</strong></div>
+<div class="metric"><small>EMA 9 / EMA 21</small><strong id="ema">—</strong></div>
+</div><p id="updated" class="warning"></p><p id="note" class="warning"></p>
+</section>
+<section class="card"><b>وضعیت نسخه</b><p class="warning">این نسخه یک موتور قانون‌محور اولیه است، نه مدل AI آموزش‌دیده. سود تضمین نیست؛ پیش از هر استفاده واقعی باید بک‌تست، تست خارج از نمونه و paper trading انجام شود. اجرای خودکار معامله غیرفعال است.</p></section>
+</main>
+<script>
+/* Set this to your deployed Cloudflare Worker URL, e.g. https://naya-api.yourname.workers.dev */
+const API_BASE = "SET_YOUR_CLOUDFLARE_WORKER_URL";
+const $ = id => document.getElementById(id);
+const fmt = n => n == null ? "—" : Number(n).toLocaleString("en-US",{maximumFractionDigits:8});
+$("analyze").addEventListener("click", async () => {
+  const base = API_BASE.trim().replace(/\/+$/,"");
+  if (!base.startsWith("https://")) { $("status").textContent = "ابتدا API_BASE را با آدرس Worker منتشرشده جایگزین کن."; return; }
+  const btn = $("analyze"); btn.disabled = true; $("status").textContent = "در حال دریافت داده و تحلیل…"; $("result").classList.add("hide");
+  try {
+    const symbol = $("symbol").value, interval = $("interval").value;
+    const res = await fetch(`${base}/api/analyze?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}`);
+    const d = await res.json(); if (!res.ok) throw new Error(d.error || "خطا در دریافت داده");
+    $("result").classList.remove("hide"); $("symbolTitle").textContent = d.symbol;
+    $("signal").textContent = d.signal; $("signal").className = "pill " + d.signal;
+    $("reason").textContent = d.reason; $("price").textContent = fmt(d.price);
+    $("entry").textContent = d.entryZone ? d.entryZone.map(fmt).join(" – ") : "فعلاً ورود ندارد";
+    $("sl").textContent = fmt(d.stopLoss); $("tp").textContent = d.takeProfit?.length ? d.takeProfit.map(fmt).join(" / ") : "—";
+    $("rsi").textContent = d.indicators?.rsi14 ?? "—";
+    $("ema").textContent = d.indicators ? `${fmt(d.indicators.ema9)} / ${fmt(d.indicators.ema21)}` : "—";
+    $("updated").textContent = d.updatedAt ? "زمان کندل آخر: " + new Date(d.updatedAt).toLocaleString() : "";
+    $("note").textContent = d.note || "";
+    $("status").textContent = "تحلیل دریافت شد.";
+  } catch(e) { $("status").innerHTML = '<span class="error"></span>'; $("status").textContent = "خطا: " + e.message; }
+  finally { btn.disabled = false; }
+});
+</script></body></html>
